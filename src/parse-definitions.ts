@@ -58,6 +58,10 @@ export default async function main(): Promise<void> {
 	const typings: { [name: string]: TypingsData } = {};
 
 	for (const s of folders) {
+		if (s === "scripts") {
+			continue;
+		}
+
 		const result = await processDir(s);
 
 		// Record outcome

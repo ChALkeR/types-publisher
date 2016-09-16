@@ -130,13 +130,7 @@ export async function getTypingInfo(folderName: string): Promise<TypingParseFail
 
 	// There is a *single* main file, containing metadata comments.
 	// But there may be many entryFilenames, which are the starting points of inferring all files to be included.
-	const mainFileResult = await mainFile(directory, folderName, log.info);
-	if (mainFileResult.kind === "failure") {
-		log.info(mainFileResult.message);
-		log.error(mainFileResult.message);
-		return { kind: "fail", logs: logResult(), rejectionReason: RejectionReason.TooManyFiles };
-	}
-	const mainFilename = mainFileResult.filename;
+	const mainFilename = await mainFile(directory, folderName, log.info);
 	const mainFileContent = await readFile(directory, mainFilename);
 
 	const { authors, libraryMajorVersion, libraryMinorVersion, libraryName, projectName } = parseMetadata(mainFileContent);
@@ -174,15 +168,7 @@ export async function getTypingInfo(folderName: string): Promise<TypingParseFail
 	};
 }
 
-interface MainFileSuccess {
-	kind: "success";
-	filename: string;
-}
-interface MainFileFailure {
-	kind: "failure";
-	message: string;
-}
-async function mainFile(directory: string, folderName: string, log: Logger): Promise<MainFileSuccess | MainFileFailure> {
+async function mainFile(directory: string, folderName: string, log: Logger): Promise<string> {
 	// otherwise, load all files from the directory
 	const declFiles = await readdirRecursive(directory, (file, stats) =>
 			// Only include type declaration files.
@@ -192,7 +178,7 @@ async function mainFile(directory: string, folderName: string, log: Logger): Pro
 	log(`Found ${declFiles.length} '.d.ts' files in directory (${declFiles.join(", ")})`);
 
 	if (declFiles.length === 1) {
-		return { kind: "success", filename: declFiles[0] };
+		return declFiles[0];
 	} else {
 		// You can have [foldername].d.ts, or index.d.ts to rescue yourself from this situation
 		const candidates = [folderName + ".d.ts", "index.d.ts"];
@@ -200,12 +186,9 @@ async function mainFile(directory: string, folderName: string, log: Logger): Pro
 		if (existingCandidates.length > 1) {
 			throw new Error(`Conflicting main files: ${existingCandidates}`);
 		} else if (!existingCandidates.length) {
-			return {
-				kind: "failure",
-				message: "Exiting, found either zero or more than one .d.ts file and none of " + candidates.map(c => "`" + c + "`").join(" or ")
-			};
+			throw new Error("Exiting, found either zero or more than one .d.ts file and none of " + candidates.map(c => "`" + c + "`").join(" or "));
 		} else {
-			return { kind: "success", filename: existingCandidates[0] };
+			return existingCandidates[0];
 		}
 	}
 }
