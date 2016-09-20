@@ -102,7 +102,8 @@ async function createPackageJSON(typing: TypingsData, { version, contentHash }: 
 	let pkg: PartialPackageJson = typing.hasPackageJson ? await readJson(pkgPath) : {};
 
 	const ignoredField = Object.keys(pkg).find(field => !["dependencies", "description"].includes(field));
-	if (ignoredField) {
+	// Kludge: allow "scripts"
+	if (ignoredField && ignoredField !== "scripts") {
 		throw new Error(`Ignored field in ${pkgPath}: ${ignoredField}`);
 	}
 
